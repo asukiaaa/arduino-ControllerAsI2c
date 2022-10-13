@@ -16,31 +16,32 @@ void setCrc16(uint8_t* dataArr, uint8_t dataLen, uint8_t dataMaxLen) {
   }
   dataArr[dataLen] = crc16 >> 8;
   dataArr[dataLen + 1] = crc16 & 0xff;
-  Serial.println(crc16);
-  Serial.println(String(dataArr[dataLen]) + " " + String(dataArr[dataLen + 1]));
+  // Serial.println(crc16);
+  // Serial.println(String(dataArr[dataLen]) + " " + String(dataArr[dataLen + 1]));
 }
 
 void taskController(void* param) {
-  size_t dataLen = 3 + controller.notifByteLen + 2;
-  peri.buffs[Register::dataLen] = dataLen;
-  peri.buffs[Register::controllerType] =
+  size_t dataLenWithoutCrc = 3 + controller.notifByteLen;
+  size_t dataLen = dataLenWithoutCrc + 2;
+  peri.buffs[Register::DataLen] = dataLen;
+  peri.buffs[Register::ControllerType] =
       (uint8_t)ControllerAsI2c_asukiaaa::ControllerType::Xbox;
   while (true) {
     controller.onLoop();
     if (controller.isConnected()) {
-      peri.buffs[Register::controllerState] =
-          (uint8_t)ControllerAsI2c_asukiaaa::ConectionState::connected;
+      peri.buffs[Register::ConnectionState] =
+          (uint8_t)ControllerAsI2c_asukiaaa::ConnectionState::Connected;
       auto notif = controller.xboxNotif;
-      memcpy(&peri.buffs[Register::dataStart], controller.notifByteArr,
+      memcpy(&peri.buffs[Register::DataStart], controller.notifByteArr,
              controller.notifByteLen);
-      setCrc16(peri.buffs, dataLen, peri.buffLen);
+      setCrc16(peri.buffs, dataLenWithoutCrc, peri.buffLen);
     } else {
-      peri.buffs[Register::controllerState] =
+      peri.buffs[Register::ConnectionState] =
           controller.getCountFailedConnection() == 0
-              ? (uint8_t)ControllerAsI2c_asukiaaa::ConectionState::notFound
-              : (uint8_t)ControllerAsI2c_asukiaaa::ConectionState::
-                    foundButNotConnected;
-      setCrc16(peri.buffs, dataLen, peri.buffLen);
+              ? (uint8_t)ControllerAsI2c_asukiaaa::ConnectionState::NotFound
+              : (uint8_t)ControllerAsI2c_asukiaaa::ConnectionState::
+                    FoundButNotConnected;
+      setCrc16(peri.buffs, dataLenWithoutCrc, peri.buffLen);
       if (controller.getCountFailedConnection() > 3) {
         Serial.println("failed connection");
         ESP.restart();

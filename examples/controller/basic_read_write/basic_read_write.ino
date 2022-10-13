@@ -2,8 +2,7 @@
 
 #include <ControllerAsI2c_asukiaaa.hpp>
 
-ControllerAsI2c_asukiaaa::Driver<TwoWire> controllerDriver(&Wire);
-ControllerAsI2c_asukiaaa::Info controllerInfo;
+ControllerAsI2c_asukiaaa::Driver controllerDriver(&Wire);
 
 void setup() {
   Serial.begin(115200);
@@ -11,7 +10,7 @@ void setup() {
 }
 
 void loop() {
-  controllerDriver.read(&controllerInfo);
-  controllerInfo.print(&Serial);
-  delay(2000);
+  auto info = controllerDriver.read();
+  info.print(&Serial);
+  delay(10);
 }
