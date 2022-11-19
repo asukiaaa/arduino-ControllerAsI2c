@@ -30,8 +30,9 @@ enum class ControllerType : uint8_t { Unkown = 0, Xbox = 0 };
 enum class ConnectionState : uint8_t {
   Unkown = 9,
   Connected = 0,
-  FoundButNotConnected = 1,
-  NotFound = 2,
+  WaitingForFirstNotification = 1,
+  FoundButNotConnected = 2,
+  NotFound = 3,
 };
 
 class Info {
@@ -141,8 +142,8 @@ class Info {
     buttonsDirL[3] = parser.btnDirDown;
     buttonsDirR[0] = parser.btnY;
     buttonsDirR[1] = parser.btnX;
-    buttonsDirR[2] = parser.btnA;
-    buttonsDirR[3] = parser.btnB;
+    buttonsDirR[2] = parser.btnB;
+    buttonsDirR[3] = parser.btnA;
     joyLHori = convertToJoyRate(parser.joyLHori, parser.maxJoy, true);
     joyLVert = convertToJoyRate(parser.joyLVert, parser.maxJoy, false);
     joyRHori = convertToJoyRate(parser.joyRHori, parser.maxJoy, true);
