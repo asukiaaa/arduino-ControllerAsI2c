@@ -5,7 +5,7 @@
 
 #include <wire_asukiaaa.hpp>
 
-#define CONTROLLER_AS_I2C_TARGET_ADDRESS 0x20
+#define CONTROLLER_AS_I2C_TARGET_ADDRESS 0x30
 
 namespace ControllerAsI2c_asukiaaa {
 
