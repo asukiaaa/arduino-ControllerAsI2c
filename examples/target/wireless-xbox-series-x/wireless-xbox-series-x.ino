@@ -1,11 +1,18 @@
 #include <CRCx.h>
 #include <Wire.h>
+#include <button_asukiaaa.h>
+#include <string_asukiaaa.h>
 
 #include <ControllerAsI2c_asukiaaa.hpp>
 #include <XboxSeriesXControllerESP32_asukiaaa.hpp>
 #include <wire_asukiaaa.hpp>
 
-// #define TARGET_CONTROLLER_ADDRESS "68:6c:e6:3a:ac:ba"
+#define PIN_BTN_TEST 0
+// #define PIN_BTN_TEST 39 // m5stack btnA
+
+// #define TEST_VIBRATION
+
+button_asukiaaa::Button btnTest(PIN_BTN_TEST);
 
 #ifdef TARGET_CONTROLLER_ADDRESS
 XboxSeriesXControllerESP32_asukiaaa::Core controller(TARGET_CONTROLLER_ADDRESS);
@@ -27,13 +34,35 @@ void setCrc16(uint8_t* dataArr, uint8_t dataLen, uint8_t dataMaxLen) {
 
 bool changedToConnected = false;
 
+void convertToDataArr(String dataStr, uint8_t* dataArr, size_t dataLen) {
+  String formattedStr = dataStr;
+  formattedStr.replace(" ", "");
+  formattedStr = string_asukiaaa::padStart(formattedStr, 2 * dataLen, '0');
+  auto len = formattedStr.length();
+  // Serial.println(formattedStr);
+  // Serial.println(len);
+  formattedStr = formattedStr.substring(len - dataLen * 2);
+  // Serial.println(formattedStr);
+  for (int i = 0; i < dataLen; ++i) {
+    String strHex =
+        String(formattedStr[i * 2]) + String(formattedStr[i * 2 + 1]);
+    auto v = strtol(strHex.c_str(), 0, 16);
+    // Serial.println(strHex + " -> " + String(v));
+    dataArr[dataLen - i - 1] = v;
+  }
+}
+
 void taskController(void* param) {
   size_t dataLenWithoutCrc = 3 + controller.notifByteLen;
   size_t dataLen = dataLenWithoutCrc + 2;
   peri.buffs[Register::DataLen] = dataLen;
   peri.buffs[Register::ControllerType] =
       (uint8_t)ControllerAsI2c_asukiaaa::ControllerType::Xbox;
+  const size_t dataCommandLen = 8;
+  uint8_t dataCommandArr[dataCommandLen];
+  String dataCommandStr = "";
   while (true) {
+    btnTest.update();
     controller.onLoop();
     if (controller.isConnected()) {
       if (controller.isWaitingForFirstNotification()) {
@@ -44,6 +73,30 @@ void taskController(void* param) {
         if (!changedToConnected) {
           changedToConnected = true;
           Serial.println("Connected to " + controller.buildDeviceAddressStr());
+        }
+#ifdef TEST_VIBRATION
+        while (Serial.available()) {
+          char v = Serial.read();
+          Serial.print(v);
+          if (v == '\n') {
+            Serial.println();
+            convertToDataArr(dataCommandStr, dataCommandArr, dataCommandLen);
+            Serial.println("send " + dataCommandStr);
+            for (int i = 0; i < dataCommandLen; ++i) {
+              Serial.print(dataCommandArr[i]);
+              Serial.print(" ");
+            }
+            controller.writeHIDReport(dataCommandArr, dataCommandLen);
+            dataCommandStr = "";
+          } else {
+            if (v != '\r') {
+              dataCommandStr += v;
+            }
+          }
+        }
+#endif
+        if (btnTest.changedToPress()) {
+          Serial.println("test");
         }
         peri.buffs[Register::ConnectionState] =
             (uint8_t)ControllerAsI2c_asukiaaa::ConnectionState::Connected;
