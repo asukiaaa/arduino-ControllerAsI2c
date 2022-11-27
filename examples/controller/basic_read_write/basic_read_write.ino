@@ -10,7 +10,8 @@ void setup() {
 }
 
 void loop() {
-  auto info = controllerDriver.read();
+  controllerDriver.read();
+  auto info = controllerDriver.getInfo();
   info.print(&Serial);
-  delay(10);
+  delay(500);
 }

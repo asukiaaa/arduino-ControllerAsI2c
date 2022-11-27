@@ -1,4 +1,3 @@
-#include <CRCx.h>
 #include <Wire.h>
 #include <button_asukiaaa.h>
 #include <string_asukiaaa.h>
@@ -6,6 +5,11 @@
 #include <ControllerAsI2c_asukiaaa.hpp>
 #include <XboxSeriesXControllerESP32_asukiaaa.hpp>
 #include <wire_asukiaaa.hpp>
+
+namespace Xbox = ControllerAsI2c_asukiaaa::XboxSeriesX;
+Xbox::DataWritable dataWrite;
+Xbox::DataReadonly dataRead;
+using ControllerAsI2c_asukiaaa::Common::ConnectionState;
 
 #define PIN_BTN_TEST 0
 // #define PIN_BTN_TEST 39 // m5stack btnA
@@ -20,17 +24,7 @@ XboxSeriesXControllerESP32_asukiaaa::Core controller(TARGET_CONTROLLER_ADDRESS);
 XboxSeriesXControllerESP32_asukiaaa::Core controller;
 #endif
 
-wire_asukiaaa::PeripheralHandler peri(&Wire, 0xff);
-namespace Register = ControllerAsI2c_asukiaaa::Register;
-
-void setCrc16(uint8_t* dataArr, uint8_t dataLen, uint8_t dataMaxLen) {
-  uint16_t crc16 = crcx::crc16(dataArr, dataLen);
-  if ((int)dataMaxLen - dataLen < 2) {
-    return;
-  }
-  dataArr[dataLen] = crc16 >> 8;
-  dataArr[dataLen + 1] = crc16 & 0xff;
-}
+wire_asukiaaa::PeripheralHandler peri(&Wire);
 
 bool changedToConnected = false;
 
@@ -52,23 +46,17 @@ void convertToDataArr(String dataStr, uint8_t* dataArr, size_t dataLen) {
   }
 }
 
+void publishControllerNotif(XboxControllerNotificationParser& notif) {
+  notif.toArr(dataRead.dataNotif, notif.expectedDataLen);
+}
+
 void taskController(void* param) {
-  size_t dataLenWithoutCrc = 3 + controller.notifByteLen;
-  size_t dataLen = dataLenWithoutCrc + 2;
-  peri.buffs[Register::DataLen] = dataLen;
-  peri.buffs[Register::ControllerType] =
-      (uint8_t)ControllerAsI2c_asukiaaa::ControllerType::Xbox;
-  const size_t dataCommandLen = 8;
-  uint8_t dataCommandArr[dataCommandLen];
-  String dataCommandStr = "";
+  XboxControllerNotificationParser defaultControllerNotf;
   while (true) {
-    btnTest.update();
     controller.onLoop();
     if (controller.isConnected()) {
       if (controller.isWaitingForFirstNotification()) {
-        peri.buffs[Register::ConnectionState] =
-            (uint8_t)ControllerAsI2c_asukiaaa::ConnectionState::
-                WaitingForFirstNotification;
+        dataRead.connectionState = ConnectionState::WaitingForFirstNotification;
       } else {
         if (!changedToConnected) {
           changedToConnected = true;
@@ -95,29 +83,28 @@ void taskController(void* param) {
           }
         }
 #endif
-        if (btnTest.changedToPress()) {
-          Serial.println("test");
-        }
-        peri.buffs[Register::ConnectionState] =
-            (uint8_t)ControllerAsI2c_asukiaaa::ConnectionState::Connected;
-        auto notif = controller.xboxNotif;
-        memcpy(&peri.buffs[Register::DataStart], controller.notifByteArr,
-               controller.notifByteLen);
+        dataRead.connectionState = ConnectionState::Connected;
+        publishControllerNotif(controller.xboxNotif);
       }
-      setCrc16(peri.buffs, dataLenWithoutCrc, peri.buffLen);
     } else {
       changedToConnected = false;
-      peri.buffs[Register::ConnectionState] =
-          controller.getCountFailedConnection() == 0
-              ? (uint8_t)ControllerAsI2c_asukiaaa::ConnectionState::NotFound
-              : (uint8_t)ControllerAsI2c_asukiaaa::ConnectionState::
-                    FoundButNotConnected;
-      setCrc16(peri.buffs, dataLenWithoutCrc, peri.buffLen);
+      dataRead.connectionState = controller.getCountFailedConnection() == 0
+                                     ? ConnectionState::NotFound
+                                     : ConnectionState::FoundButNotConnected;
+      publishControllerNotif(defaultControllerNotf);
       if (controller.getCountFailedConnection() > 3) {
         Serial.println("failed connection");
         ESP.restart();
       }
     }
+    dataRead.toArr(&peri.buffs[Xbox::Register::startReadonly],
+                   Xbox::lengthReadonly);
+    // Serial.println("put data");
+    // for (int i = 0; i < Xbox::lengthReadonly; ++i) {
+    //   Serial.print(String(peri.buffs[i + Xbox::Register::startReadonly]));
+    //   Serial.print(" ");
+    // }
+    // Serial.println();
     delay(10);
   }
 }
@@ -131,6 +118,8 @@ void setup() {
   // loopはcore0で実行されます。xTaskCreateの最後の引数がコア番号を意味します。
   xTaskCreatePinnedToCore(taskController, "taskController", 4096, NULL, 1, NULL,
                           1);
+  Xbox::header.toArr(peri.buffs,
+                     ControllerAsI2c_asukiaaa::Common::lengthDataHeader);
 }
 
 void loop() { delay(100); }
