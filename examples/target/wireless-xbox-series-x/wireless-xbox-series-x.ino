@@ -142,7 +142,10 @@ void setup() {
   controller.begin();
   peri.setOnReceiveForAddress(onReceiveAddress);
   Wire.onReceive([](int i) { peri.onReceive(i); });
-  Wire.onRequest([]() { peri.onRequest(); });
+  Wire.onRequest([]() {
+    dataRead.communicationCount++;
+    peri.onRequest();
+  });
   Wire.begin((uint8_t)CONTROLLER_AS_I2C_TARGET_ADDRESS, SDA, SCL, 0);
   // loopはcore0で実行されます。xTaskCreateの最後の引数がコア番号を意味します。
   xTaskCreatePinnedToCore(taskController, "taskController", 4096, NULL, 1, NULL,
