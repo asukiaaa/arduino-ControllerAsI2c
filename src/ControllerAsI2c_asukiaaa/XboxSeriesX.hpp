@@ -10,13 +10,15 @@ namespace ControllerAsI2c_asukiaaa {
 namespace XboxSeriesX {
 
 static const uint8_t lengthReadonly =
-    XboxControllerNotificationParser::expectedDataLen + 6 + 1 + 1 +
-    2;  // 6: address, 1: connectionState, 1: battery, 2: crc
+    XboxControllerNotificationParser::expectedDataLen + 6 + 1 + 1 + 1 +
+    2;  // 6: address, 1: connectionState, 1: battery, 1: communicationCount
+        // 2: crc
 struct DataReadonly {
   uint8_t address[6];
   uint8_t dataNotif[XboxControllerNotificationParser::expectedDataLen];
   Common::ConnectionState connectionState;
   uint8_t battery;
+  uint8_t communicationCount;
 
   void toArr(uint8_t* data, size_t length) {
     if (length < lengthReadonly) {
@@ -27,6 +29,7 @@ struct DataReadonly {
     auto nextIndex = lenAddress + lenNotif;
     data[nextIndex++] = (uint8_t)connectionState;
     data[nextIndex++] = battery;
+    data[nextIndex++] = communicationCount;
     Common::setCrc16OnTail(data, lengthReadonly);
   }
 
@@ -43,6 +46,7 @@ struct DataReadonly {
     auto nextIndex = lenAddress + lenNotif;
     connectionState = (Common::ConnectionState)dataArr[nextIndex++];
     battery = dataArr[nextIndex++];
+    communicationCount = dataArr[nextIndex++];
     return 0;
   }
 
@@ -86,23 +90,43 @@ struct DataReadonly {
 };
 
 static const uint8_t lengthWritable =
-    XboxSeriesXHIDReportBuilder_asukiaaa::ReportBase::arr8tLen + 2;
+    XboxSeriesXHIDReportBuilder_asukiaaa::ReportBase::arr8tLen + 1 + 2;
 struct DataWritable {
-  uint8_t
-      dataReport[XboxSeriesXHIDReportBuilder_asukiaaa::ReportBase::arr8tLen];
+  XboxSeriesXHIDReportBuilder_asukiaaa::ReportBase report;
+  uint8_t communicationCount;
+
   void toArr(uint8_t* data, size_t length) {
     if (length < lengthWritable) {
       return;
     }
     size_t lenDataReport =
         XboxSeriesXHIDReportBuilder_asukiaaa::ReportBase::arr8tLen;
+    memcpy(data, report.arr8t, lenDataReport);
+    auto nextIndex = lenDataReport;
+    data[lenDataReport++] = communicationCount;
     Common::setCrc16OnTail(data, lengthWritable);
+  }
+
+  int fromArr(uint8_t* dataArr, size_t dataLen) {
+    if (dataLen != lengthWritable) {
+      return Common::Error::LengthUnmatch;
+    }
+    if (!Common::detectMatchCrc16(dataArr, lengthWritable)) {
+      return Common::Error::CrcUnmatch;
+    }
+    size_t lenDataReport =
+        XboxSeriesXHIDReportBuilder_asukiaaa::ReportBase::arr8tLen;
+    memcpy(report.arr8t, dataArr, lenDataReport);
+    auto nextIndex = lenDataReport;
+    communicationCount = dataArr[nextIndex++];
+    return 0;
   }
 };
 
-Common::DataHeader header = {.controllerType = Common::ControllerType::XboxSeriesX,
-                             .lengthReadonly = lengthReadonly,
-                             .lengthWritable = lengthWritable};
+Common::DataHeader header = {
+    .controllerType = Common::ControllerType::XboxSeriesX,
+    .lengthReadonly = lengthReadonly,
+    .lengthWritable = lengthWritable};
 
 namespace Register {
 uint8_t startStatic = 0;

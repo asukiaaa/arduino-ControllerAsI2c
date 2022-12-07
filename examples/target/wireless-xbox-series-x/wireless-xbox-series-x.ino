@@ -50,6 +50,15 @@ void publishControllerNotif(XboxControllerNotificationParser& notif) {
   notif.toArr(dataRead.dataNotif, notif.expectedDataLen);
 }
 
+bool neededToHandleWritable = false;
+uint8_t handledCommunicationCount = 0;
+
+void onReceiveAddress(uint8_t address, uint8_t data) {
+  if (address == Xbox::Register::startWritable + Xbox::lengthWritable - 1) {
+    neededToHandleWritable = true;
+  }
+}
+
 void taskController(void* param) {
   XboxControllerNotificationParser defaultControllerNotf;
   while (true) {
@@ -86,8 +95,27 @@ void taskController(void* param) {
         dataRead.connectionState = ConnectionState::Connected;
         publishControllerNotif(controller.xboxNotif);
       }
+      if (neededToHandleWritable) {
+        Serial.println("handle writable info.");
+        neededToHandleWritable = false;
+        Xbox::DataWritable writable;
+        auto err = writable.fromArr(&peri.buffs[Xbox::Register::startWritable],
+                                    Xbox::lengthWritable);
+        if (err == 0 &&
+            writable.communicationCount != handledCommunicationCount) {
+          Serial.println("handle. communicationCount:" +
+                         String(writable.communicationCount));
+          handledCommunicationCount = writable.communicationCount;
+          controller.writeHIDReport(writable.report);
+        } else {
+          Serial.println(
+              "not handled. error:" + String(err) +
+              " communicationCount:" + String(writable.communicationCount));
+        }
+      }
     } else {
       changedToConnected = false;
+      neededToHandleWritable = false;
       dataRead.connectionState = controller.getCountFailedConnection() == 0
                                      ? ConnectionState::NotFound
                                      : ConnectionState::FoundButNotConnected;
@@ -112,6 +140,7 @@ void taskController(void* param) {
 void setup() {
   Serial.begin(115200);
   controller.begin();
+  peri.setOnReceiveForAddress(onReceiveAddress);
   Wire.onReceive([](int i) { peri.onReceive(i); });
   Wire.onRequest([]() { peri.onRequest(); });
   Wire.begin((uint8_t)CONTROLLER_AS_I2C_TARGET_ADDRESS, SDA, SCL, 0);
