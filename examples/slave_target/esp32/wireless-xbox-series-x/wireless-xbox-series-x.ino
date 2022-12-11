@@ -1,6 +1,4 @@
 #include <Wire.h>
-#include <button_asukiaaa.h>
-#include <string_asukiaaa.h>
 
 #include <ControllerAsI2c_asukiaaa.hpp>
 #include <XboxSeriesXControllerESP32_asukiaaa.hpp>
@@ -11,13 +9,6 @@ Xbox::DataWritable dataWrite;
 Xbox::DataReadonly dataRead;
 using ControllerAsI2c_asukiaaa::Common::ConnectionState;
 
-#define PIN_BTN_TEST 0
-// #define PIN_BTN_TEST 39 // m5stack btnA
-
-// #define TEST_VIBRATION
-
-button_asukiaaa::Button btnTest(PIN_BTN_TEST);
-
 #ifdef TARGET_CONTROLLER_ADDRESS
 XboxSeriesXControllerESP32_asukiaaa::Core controller(TARGET_CONTROLLER_ADDRESS);
 #else
@@ -27,24 +18,6 @@ XboxSeriesXControllerESP32_asukiaaa::Core controller;
 wire_asukiaaa::PeripheralHandler peri(&Wire);
 
 bool changedToConnected = false;
-
-void convertToDataArr(String dataStr, uint8_t* dataArr, size_t dataLen) {
-  String formattedStr = dataStr;
-  formattedStr.replace(" ", "");
-  formattedStr = string_asukiaaa::padStart(formattedStr, 2 * dataLen, '0');
-  auto len = formattedStr.length();
-  // Serial.println(formattedStr);
-  // Serial.println(len);
-  formattedStr = formattedStr.substring(len - dataLen * 2);
-  // Serial.println(formattedStr);
-  for (int i = 0; i < dataLen; ++i) {
-    String strHex =
-        String(formattedStr[i * 2]) + String(formattedStr[i * 2 + 1]);
-    auto v = strtol(strHex.c_str(), 0, 16);
-    // Serial.println(strHex + " -> " + String(v));
-    dataArr[dataLen - i - 1] = v;
-  }
-}
 
 void publishControllerNotif(XboxControllerNotificationParser& notif) {
   notif.toArr(dataRead.dataNotif, notif.expectedDataLen);
@@ -71,27 +44,6 @@ void taskController(void* param) {
           changedToConnected = true;
           Serial.println("Connected to " + controller.buildDeviceAddressStr());
         }
-#ifdef TEST_VIBRATION
-        while (Serial.available()) {
-          char v = Serial.read();
-          Serial.print(v);
-          if (v == '\n') {
-            Serial.println();
-            convertToDataArr(dataCommandStr, dataCommandArr, dataCommandLen);
-            Serial.println("send " + dataCommandStr);
-            for (int i = 0; i < dataCommandLen; ++i) {
-              Serial.print(dataCommandArr[i]);
-              Serial.print(" ");
-            }
-            controller.writeHIDReport(dataCommandArr, dataCommandLen);
-            dataCommandStr = "";
-          } else {
-            if (v != '\r') {
-              dataCommandStr += v;
-            }
-          }
-        }
-#endif
         dataRead.connectionState = ConnectionState::Connected;
         publishControllerNotif(controller.xboxNotif);
       }
@@ -127,12 +79,6 @@ void taskController(void* param) {
     }
     dataRead.toArr(&peri.buffs[Xbox::Register::startReadonly],
                    Xbox::lengthReadonly);
-    // Serial.println("put data");
-    // for (int i = 0; i < Xbox::lengthReadonly; ++i) {
-    //   Serial.print(String(peri.buffs[i + Xbox::Register::startReadonly]));
-    //   Serial.print(" ");
-    // }
-    // Serial.println();
     delay(10);
   }
 }
