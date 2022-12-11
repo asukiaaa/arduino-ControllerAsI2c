@@ -6,6 +6,7 @@ namespace ControllerAsI2c_asukiaaa {
 
 namespace Common {
 enum class ControllerType : uint8_t { Unkown = 0, XboxSeriesX = 1 };
+enum class ReceiverType : uint8_t { Unkown = 0, esp32 = 1 };
 enum class ConnectionState : uint8_t {
   Unkown = 9,
   Connected = 0,
@@ -32,9 +33,10 @@ bool detectMatchCrc16(uint8_t* dataArr, size_t dataLenIncludesCrc) {
   return crc16Created == crc16Received;
 }
 
-static const uint8_t lengthDataHeader = 6;
+static const uint8_t lengthDataHeader = 7;
 struct DataHeader {
   ControllerType controllerType;
+  ReceiverType receiverType;
   uint8_t lengthReadonly;
   uint8_t lengthWritable;
 
@@ -43,8 +45,9 @@ struct DataHeader {
       return;
     }
     data[0] = (uint8_t)controllerType;
-    data[1] = lengthReadonly;
-    data[2] = lengthWritable;
+    data[1] = (uint8_t)receiverType;
+    data[2] = lengthReadonly;
+    data[3] = lengthWritable;
     setCrc16OnTail(data, lengthDataHeader);
   }
 
@@ -57,8 +60,9 @@ struct DataHeader {
       return Error::UnkownControllerType;
     }
     controllerType = type;
-    lengthReadonly = data[1];
-    lengthWritable = data[2];
+    receiverType = (ReceiverType)data[1];
+    lengthReadonly = data[2];
+    lengthWritable = data[3];
     return 0;
   }
 
@@ -79,6 +83,7 @@ class Info {
   unsigned long readAt = 0;
   uint8_t communicationCount = 0;
   Common::ControllerType controllerType = Common::ControllerType::Unkown;
+  Common::ReceiverType receiverType = Common::ReceiverType::Unkown;
   Common::ConnectionState connectionState = Common::ConnectionState::Unkown;
   int8_t buttonsDirL[4];
   int8_t buttonsDirR[4];
@@ -109,8 +114,10 @@ class Info {
       return;
     }
     serial->println("controllerType " + String((uint8_t)controllerType));
+    serial->println("receiverType " + String((uint8_t)receiverType));
     serial->println("connectionState " + String((uint8_t)connectionState));
-    serial->println("communicationCount " + String((uint8_t)communicationCount));
+    serial->println("communicationCount " +
+                    String((uint8_t)communicationCount));
     if (connectionState == Common::ConnectionState::Connected) {
       serial->print("buttonsDirL");
       for (int i = 0; i < 4; ++i) {

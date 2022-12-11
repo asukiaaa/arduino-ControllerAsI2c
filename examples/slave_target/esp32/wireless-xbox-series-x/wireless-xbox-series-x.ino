@@ -99,8 +99,9 @@ void setup() {
   // loop handles oncore0, last vlue of xTaskCreate means core number
   xTaskCreatePinnedToCore(taskController, "taskController", 4096, NULL, 1, NULL,
                           1);
-  Xbox::header.toArr(peri.buffs,
-                     ControllerAsI2c_asukiaaa::Common::lengthDataHeader);
+  auto header = Xbox::header;
+  header.receiverType = ControllerAsI2c_asukiaaa::Common::ReceiverType::esp32;
+  header.toArr(peri.buffs, ControllerAsI2c_asukiaaa::Common::lengthDataHeader);
 }
 
 void loop() { delay(100); }

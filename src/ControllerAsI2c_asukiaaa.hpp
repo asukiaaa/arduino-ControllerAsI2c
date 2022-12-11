@@ -95,6 +95,7 @@ class Driver_template {
     if (stateRead != 0) {
       return info;
     }
+    info.receiverType = header.receiverType;
     if (header.controllerType == Common::ControllerType::XboxSeriesX &&
         xboxDataReadonly != NULL) {
       xboxDataReadonly->toInfo(&info);

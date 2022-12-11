@@ -126,6 +126,7 @@ struct DataWritable {
 
 Common::DataHeader header = {
     .controllerType = Common::ControllerType::XboxSeriesX,
+    .receiverType = Common::ReceiverType::Unkown,
     .lengthReadonly = lengthReadonly,
     .lengthWritable = lengthWritable};
 
