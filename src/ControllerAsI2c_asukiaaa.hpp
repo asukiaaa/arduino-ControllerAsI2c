@@ -91,6 +91,7 @@ class Driver_template {
   Common::Info getInfo() {
     Common::Info info;
     info.stateRead = stateRead;
+    info.readAt = readAt;
     if (stateRead != 0) {
       return info;
     }
