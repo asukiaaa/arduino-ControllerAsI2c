@@ -36,3 +36,8 @@ See [examples/slave_target/esp32/](./examples/slave_target/esp32).
 ## License
 
 MIT
+
+## References
+
+- [ESP32を受信機にしてXboxのコントローラーをI2C経由で使えるライブラリを作った](https://asukiaaa.blogspot.com/2022/12/esp32-as-receiver-of-xbox-series-x-controller.html)
+- [XboxSeriesXControllerESP32_asukiaaa](https://github.com/asukiaaa/arduino-XboxSeriesXControllerESP32)
