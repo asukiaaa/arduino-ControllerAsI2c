@@ -13,5 +13,6 @@ void loop() {
   controllerDriver.read();
   auto info = controllerDriver.getInfo();
   info.print(&Serial);
+  Serial.println();
   delay(500);
 }

@@ -104,7 +104,6 @@ class Info {
     //     serial->println();
     //   }
     // }
-    serial->println();
     if (stateRead != 0) {
       return;
     }
