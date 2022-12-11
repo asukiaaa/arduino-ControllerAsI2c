@@ -52,6 +52,7 @@ struct DataReadonly {
 
   void toInfo(Common::Info* info) {
     XboxControllerNotificationParser parser;
+    info->communicationCount = communicationCount;
     parser.update(dataNotif, XboxControllerNotificationParser::expectedDataLen);
     info->buttonsDirL[0] = parser.btnDirUp;
     info->buttonsDirL[1] = parser.btnDirLeft;

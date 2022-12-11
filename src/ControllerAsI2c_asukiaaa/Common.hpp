@@ -77,6 +77,7 @@ class Info {
  public:
   int stateRead = -1;
   unsigned long readAt = 0;
+  uint8_t communicationCount = 0;
   Common::ControllerType controllerType = Common::ControllerType::Unkown;
   Common::ConnectionState connectionState = Common::ConnectionState::Unkown;
   int8_t buttonsDirL[4];
@@ -109,6 +110,7 @@ class Info {
     }
     serial->println("controllerType " + String((uint8_t)controllerType));
     serial->println("connectionState " + String((uint8_t)connectionState));
+    serial->println("communicationCount " + String((uint8_t)communicationCount));
     if (connectionState == Common::ConnectionState::Connected) {
       serial->print("buttonsDirL");
       for (int i = 0; i < 4; ++i) {
