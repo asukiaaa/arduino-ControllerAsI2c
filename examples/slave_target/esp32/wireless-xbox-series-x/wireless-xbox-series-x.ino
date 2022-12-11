@@ -4,13 +4,16 @@
 #include <XboxSeriesXControllerESP32_asukiaaa.hpp>
 #include <wire_asukiaaa.hpp>
 
+// specify controller address
+// #define XBOX_CONTROLLER_ADDRESS "aa:bb:cc:dd:ee:ff"
+
 namespace Xbox = ControllerAsI2c_asukiaaa::XboxSeriesX;
 Xbox::DataWritable dataWrite;
 Xbox::DataReadonly dataRead;
 using ControllerAsI2c_asukiaaa::Common::ConnectionState;
 
-#ifdef TARGET_CONTROLLER_ADDRESS
-XboxSeriesXControllerESP32_asukiaaa::Core controller(TARGET_CONTROLLER_ADDRESS);
+#ifdef XBOX_CONTROLLER_ADDRESS
+XboxSeriesXControllerESP32_asukiaaa::Core controller(XBOX_CONTROLLER_ADDRESS);
 #else
 XboxSeriesXControllerESP32_asukiaaa::Core controller;
 #endif
