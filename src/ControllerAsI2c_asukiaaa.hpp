@@ -46,6 +46,7 @@ class Driver_template {
 
   uint8_t read() {
     readAt = millis();
+    delayMicroseconds(20);
     stateRead = wire_asukiaaa::checkPresence(wire, deviceAddress);
     if (stateRead != 0) {
       return stateRead;
@@ -116,7 +117,7 @@ class Driver_template {
   static wire_asukiaaa::ReadConfig* configWithoutCheckingPresence;
 
   uint8_t readHeader(int retryCount = 2) {
-    delayMicroseconds(10);
+    delayMicroseconds(20);
     auto result = wire_asukiaaa::readBytes(wire, deviceAddress, 0, dataArr,
                                            Common::lengthDataHeader,
                                            *configWithoutCheckingPresence);
@@ -159,7 +160,7 @@ class Driver_template {
     if (lengthReadonly == 0) {
       return Common::Error::LengthUnmatch;
     }
-    delayMicroseconds(10);
+    delayMicroseconds(20);
     auto result = wire_asukiaaa::readBytes(wire, deviceAddress, startReadonly,
                                            dataArr, lengthReadonly,
                                            *configWithoutCheckingPresence);

@@ -103,7 +103,6 @@ struct DataWritable {
     size_t lenDataReport =
         XboxSeriesXHIDReportBuilder_asukiaaa::ReportBase::arr8tLen;
     memcpy(data, report.arr8t, lenDataReport);
-    auto nextIndex = lenDataReport;
     data[lenDataReport++] = communicationCount;
     Common::setCrc16OnTail(data, lengthWritable);
   }
