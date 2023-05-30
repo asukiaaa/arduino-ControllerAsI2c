@@ -106,6 +106,13 @@ class Driver_template {
     return info;
   }
 
+  const XboxSeriesX::DataReadonly* getXboxSeriesXDataReadonlyP() {
+    if (xboxDataReadonly == NULL) {
+      xboxDataReadonly = new XboxSeriesX::DataReadonly;
+    }
+    return xboxDataReadonly;
+  }
+
  private:
   uint8_t* dataArr;
   size_t dataLen = 0;

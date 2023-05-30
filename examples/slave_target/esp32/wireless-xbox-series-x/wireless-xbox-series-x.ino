@@ -76,6 +76,7 @@ void taskController(void* param) {
           Serial.println("Connected to " + controller.buildDeviceAddressStr());
         }
         dataRead.connectionState = ConnectionState::Connected;
+        dataRead.battery = controller.battery;
         publishControllerNotif(controller.xboxNotif);
       }
       if (neededToHandleWritable) {
