@@ -20,7 +20,32 @@ XboxSeriesXControllerESP32_asukiaaa::Core controller(XBOX_CONTROLLER_ADDRESS);
 XboxSeriesXControllerESP32_asukiaaa::Core controller;
 #endif
 
-wire_asukiaaa::PeripheralHandler peri(&Wire);
+class I2cManager
+    : public wire_asukiaaa::
+          PeripheralHandlerSeparateReceiveAndSendBytesTemplate<TwoWire> {
+ public:
+  I2cManager(TwoWire* wire)
+      : wire_asukiaaa::PeripheralHandlerSeparateReceiveAndSendBytesTemplate<
+            TwoWire>(wire) {}
+
+  void onReceiveForAddress(uint8_t address, uint8_t data) {
+    if (address == Xbox::Register::startWritable + Xbox::lengthWritable - 1) {
+      neededToHandleWritable = true;
+    }
+  }
+
+  void onSendFromAddress(uint8_t address) {
+    if (address == Xbox::Register::startReadonly) {
+      ++countSendReadonlyInfo;
+    } else if (address == Xbox::Register::startStatic) {
+      ++countSendStaticInfo;
+    }
+  }
+
+  bool neededToHandleWritable = false;
+  uint8_t countSendStaticInfo = 0;
+  uint8_t countSendReadonlyInfo = 0;
+} peri(&Wire);
 
 #define MS_TO_RESET_FOR_NOT_CONNECTED_FROM_FOUND 10000UL
 
@@ -50,17 +75,7 @@ void publishControllerNotif(XboxControllerNotificationParser& notif) {
   notif.toArr(dataRead.dataNotif, notif.expectedDataLen);
 }
 
-bool neededToHandleWritable = false;
 uint8_t handledCommunicationCount = 0;
-
-uint8_t countSendStaticInfo = 0;
-uint8_t countSendReadonlyInfo = 0;
-
-void onReceiveAddress(uint8_t address, uint8_t data) {
-  if (address == Xbox::Register::startWritable + Xbox::lengthWritable - 1) {
-    neededToHandleWritable = true;
-  }
-}
 
 void taskController(void* param) {
   XboxControllerNotificationParser defaultControllerNotf;
@@ -79,12 +94,13 @@ void taskController(void* param) {
         dataRead.battery = controller.battery;
         publishControllerNotif(controller.xboxNotif);
       }
-      if (neededToHandleWritable) {
+      if (peri.neededToHandleWritable) {
         Serial.println("handle writable info.");
-        neededToHandleWritable = false;
+        peri.neededToHandleWritable = false;
         Xbox::DataWritable writable;
-        auto err = writable.fromArr(&peri.buffs[Xbox::Register::startWritable],
-                                    Xbox::lengthWritable);
+        auto err =
+            writable.fromArr(&peri.bytesReceive[Xbox::Register::startWritable],
+                             Xbox::lengthWritable);
         if (err == 0 &&
             writable.communicationCount != handledCommunicationCount) {
           Serial.println("handle. communicationCount:" +
@@ -99,7 +115,7 @@ void taskController(void* param) {
       }
     } else {
       changedToConnected = false;
-      neededToHandleWritable = false;
+      peri.neededToHandleWritable = false;
       dataRead.connectionState = controller.getCountFailedConnection() == 0
                                      ? ConnectionState::NotFound
                                      : ConnectionState::FoundButNotConnected;
@@ -116,7 +132,7 @@ void taskController(void* param) {
 #endif
       }
     }
-    dataRead.toArr(&peri.buffs[Xbox::Register::startReadonly],
+    dataRead.toArr(&peri.bytesSend[Xbox::Register::startReadonly],
                    Xbox::lengthReadonly);
     delay(10);
   }
@@ -127,20 +143,12 @@ void setup() {
   esp_task_wdt_add(NULL);
   Serial.begin(115200);
   controller.begin();
-  peri.setOnReceiveForAddress(onReceiveAddress);
   Wire.onReceive([](int i) {
     peri.onReceive(i);
     // Serial.println("onReceive " + String(millis()) + " " +
     //                String(peri.getBuffIndex()));
   });
   Wire.onRequest([]() {
-    if (peri.getBuffIndex() == Xbox::Register::startReadonly) {
-      ++countSendReadonlyInfo;
-    } else if (peri.getBuffIndex() == Xbox::Register::startStatic) {
-      ++countSendStaticInfo;
-    }
-    // Serial.println("onRequest " + String(millis()) + " " +
-    //                String(peri.getBuffIndex()));
     dataRead.communicationCount++;
     peri.onRequest();
   });
@@ -156,7 +164,8 @@ void setup() {
 #endif
   auto header = Xbox::header;
   header.receiverType = ControllerAsI2c_asukiaaa::Common::ReceiverType::esp32;
-  header.toArr(peri.buffs, ControllerAsI2c_asukiaaa::Common::lengthDataHeader);
+  header.toArr(peri.bytesSend,
+               ControllerAsI2c_asukiaaa::Common::lengthDataHeader);
 }
 
 void loop() {
@@ -165,10 +174,10 @@ void loop() {
 #ifdef ESP32
   static uint8_t resetedCountSendStaticInfo = 0;
   static uint8_t resetedCountSendReadonlyInfo = 0;
-  if (resetedCountSendReadonlyInfo != countSendReadonlyInfo &&
-      resetedCountSendStaticInfo != countSendStaticInfo) {
-    resetedCountSendReadonlyInfo = countSendReadonlyInfo;
-    resetedCountSendStaticInfo = countSendStaticInfo;
+  if (resetedCountSendReadonlyInfo != peri.countSendReadonlyInfo &&
+      resetedCountSendStaticInfo != peri.countSendStaticInfo) {
+    resetedCountSendReadonlyInfo = peri.countSendReadonlyInfo;
+    resetedCountSendStaticInfo = peri.countSendStaticInfo;
     esp_task_wdt_reset();
   }
   delay(1000);
