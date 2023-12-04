@@ -1,6 +1,8 @@
 #include <Wire.h>
 #include <esp_task_wdt.h>
 #define WDT_TIMEOUT 10
+#define MS_TO_RESET_FOR_NOT_CONNECTED_FROM_FOUND 10000UL
+#define MS_TO_RESET_FOR_NOT_FOUND_TARGET 20000UL
 
 #include <ControllerAsI2c_asukiaaa.hpp>
 #include <XboxSeriesXControllerESP32_asukiaaa.hpp>
@@ -47,16 +49,12 @@ class I2cManager
   uint8_t countSendReadonlyInfo = 0;
 } peri(&Wire);
 
-#define MS_TO_RESET_FOR_NOT_CONNECTED_FROM_FOUND 10000UL
-
 #ifndef PIN_SDA
 #define PIN_SDA SDA
 #endif
 #ifndef PIN_SCL
 #define PIN_SCL SCL
 #endif
-
-bool changedToConnected = false;
 
 struct FoundInfo {
   bool found = false;
@@ -68,20 +66,22 @@ struct FoundInfo {
     return found &&
            millis() - foundAt > MS_TO_RESET_FOR_NOT_CONNECTED_FROM_FOUND;
   }
-};
-FoundInfo foundInfo;
+} foundInfo;
 
 void publishControllerNotif(XboxControllerNotificationParser& notif) {
   notif.toArr(dataRead.dataNotif, notif.expectedDataLen);
 }
 
-uint8_t handledCommunicationCount = 0;
-
 void taskController(void* param) {
   XboxControllerNotificationParser defaultControllerNotf;
+  bool changedToConnected = false;
+  uint8_t handledCommunicationCount = 0;
+  bool changedToDisconnected = false;
+  unsigned long seekTargetBeforeConnectFrom = millis();
   while (true) {
     controller.onLoop();
     if (controller.isConnected()) {
+      changedToDisconnected = false;
       foundInfo.reset();
       if (controller.isWaitingForFirstNotification()) {
         dataRead.connectionState = ConnectionState::WaitingForFirstNotification;
@@ -114,6 +114,16 @@ void taskController(void* param) {
         }
       }
     } else {
+      if (changedToDisconnected) {
+        changedToDisconnected = true;
+        seekTargetBeforeConnectFrom = millis();
+      }
+      if (millis() - seekTargetBeforeConnectFrom >
+          MS_TO_RESET_FOR_NOT_FOUND_TARGET) {
+#ifdef ESP32
+        ESP.restart();
+#endif
+      }
       changedToConnected = false;
       peri.neededToHandleWritable = false;
       dataRead.connectionState = controller.getCountFailedConnection() == 0
