@@ -100,6 +100,22 @@ class Info {
   uint8_t dataArr[dataMaxLen];
   uint8_t dataLen = 0;
 
+  int getNumberOfPressedButtonsDirLDirRCenter() {
+    int num = 0;
+    for (int i = 0; i < 4; ++i) {
+      if (buttonsDirL[i]) {
+        ++num;
+      }
+      if (buttonsDirR[i]) {
+        ++num;
+      }
+      if (buttonsCenter[i]) {
+        ++num;
+      }
+    }
+    return num;
+  }
+
   void print(Stream* serial) {
     serial->println("stateRead " + String(stateRead));
     serial->println("readAt " + String(readAt));
