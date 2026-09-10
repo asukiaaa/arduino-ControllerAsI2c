@@ -8,7 +8,7 @@
 #include <XboxSeriesXControllerESP32_asukiaaa.hpp>
 #include <wire_asukiaaa.hpp>
 
-#define REMEMBER_XBOX_CONTROLLER_ADDRESS_BY_ESP32_EEPROM
+// #define REMEMBER_XBOX_CONTROLLER_ADDRESS_BY_ESP32_EEPROM
 #ifdef REMEMBER_XBOX_CONTROLLER_ADDRESS_BY_ESP32_EEPROM
 #include <EEPROM.h>
 NimBLEAddress* addressOnEEPROM = nullptr;
