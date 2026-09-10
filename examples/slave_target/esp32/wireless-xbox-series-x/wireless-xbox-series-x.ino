@@ -8,6 +8,12 @@
 #include <XboxSeriesXControllerESP32_asukiaaa.hpp>
 #include <wire_asukiaaa.hpp>
 
+#define REMEMBER_XBOX_CONTROLLER_ADDRESS_BY_ESP32_EEPROM
+#ifdef REMEMBER_XBOX_CONTROLLER_ADDRESS_BY_ESP32_EEPROM
+#include <EEPROM.h>
+NimBLEAddress* addressOnEEPROM = nullptr;
+#endif
+
 // specify controller address
 // #define XBOX_CONTROLLER_ADDRESS "aa:bb:cc:dd:ee:ff"
 
@@ -149,6 +155,20 @@ void taskController(void* param) {
 }
 
 void setup() {
+#ifdef REMEMBER_XBOX_CONTROLLER_ADDRESS_BY_ESP32_EEPROM
+  EEPROM.begin(6);
+  uint8_t bytes[6];
+  Serial.print("read from eeprom");
+  for (int i = 0; i < 6; ++i) {
+    EEPROM.get(i, bytes[i]);
+    Serial.print(" ");
+    Serial.print(bytes[i]);
+  }
+  Serial.println();
+  addressOnEEPROM = new NimBLEAddress(bytes, 0);
+  controller.setIgnoreTargetAddressToConnectToUnkownSearchingDevice(true);
+  controller.setTargetAddress(*addressOnEEPROM->getBase());
+#endif
   esp_task_wdt_init(WDT_TIMEOUT, true);
   esp_task_wdt_add(NULL);
   Serial.begin(115200);
@@ -190,6 +210,32 @@ void loop() {
     resetedCountSendStaticInfo = peri.countSendStaticInfo;
     esp_task_wdt_reset();
   }
+#ifdef REMEMBER_XBOX_CONTROLLER_ADDRESS_BY_ESP32_EEPROM
+  if (controller.isConnected() && !controller.isWaitingForFirstNotification()) {
+    NimBLEAddress deviceAddress(controller.deviceAddressArr, 0);
+    if (addressOnEEPROM != nullptr && !addressOnEEPROM->equals(deviceAddress)) {
+      auto addressBytes = deviceAddress.getVal();
+      uint8_t bytes[6];
+      Serial.print("value on eeprom");
+      for (int i = 0; i < 6; ++i) {
+        EEPROM.get(i, bytes[i]);
+        Serial.print(" ");
+        Serial.print(bytes[i]);
+      }
+      Serial.println();
+      Serial.print("upload data on eeprom");
+      for (int i = 0; i < 6; ++i) {
+        auto data = addressBytes[i];
+        EEPROM.put(i, data);
+        EEPROM.commit();
+        Serial.print(" ");
+        Serial.print(data);
+      }
+      Serial.println();
+      *addressOnEEPROM = deviceAddress;
+    }
+  }
+#endif
   delay(1000);
   // esp_task_wdt_reset();
 #else
