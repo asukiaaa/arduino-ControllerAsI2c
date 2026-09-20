@@ -8,6 +8,7 @@
 #include <XboxSeriesXControllerESP32_asukiaaa.hpp>
 #include <wire_asukiaaa.hpp>
 
+// #define PIN_BTN_CONNECT_TO_UNKOWN_SEARCHING 41  // Button of AtomS3Lite
 // #define REMEMBER_XBOX_CONTROLLER_ADDRESS_BY_ESP32_EEPROM
 #ifdef REMEMBER_XBOX_CONTROLLER_ADDRESS_BY_ESP32_EEPROM
 #include <EEPROM.h>
@@ -169,6 +170,10 @@ void setup() {
   controller.setIgnoreTargetAddressToConnectToUnkownSearchingDevice(true);
   controller.setTargetAddress(*addressOnEEPROM->getBase());
 #endif
+#ifdef PIN_BTN_CONNECT_TO_UNKOWN_SEARCHING
+  controller.setIgnoreTargetAddressToConnectToUnkownSearchingDevice(false);
+  pinMode(PIN_BTN_CONNECT_TO_UNKOWN_SEARCHING, INPUT_PULLUP);
+#endif
   esp_task_wdt_init(WDT_TIMEOUT, true);
   esp_task_wdt_add(NULL);
   Serial.begin(115200);
@@ -210,6 +215,10 @@ void loop() {
     resetedCountSendStaticInfo = peri.countSendStaticInfo;
     esp_task_wdt_reset();
   }
+#ifdef PIN_BTN_CONNECT_TO_UNKOWN_SEARCHING
+  controller.setIgnoreTargetAddressToConnectToUnkownSearchingDevice(
+      digitalRead(PIN_BTN_CONNECT_TO_UNKOWN_SEARCHING) == LOW);
+#endif
 #ifdef REMEMBER_XBOX_CONTROLLER_ADDRESS_BY_ESP32_EEPROM
   if (controller.isConnected() && !controller.isWaitingForFirstNotification()) {
     NimBLEAddress deviceAddress(controller.deviceAddressArr, 0);
